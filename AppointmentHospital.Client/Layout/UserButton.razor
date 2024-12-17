@@ -1,0 +1,52 @@
+﻿@using Blazored.LocalStorage
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject ILocalStorageService _localStorage
+@inject AuthenticationStateProvider _authenticationStateProvider
+@inject NavigationManager _navigationManager
+
+<div class="dropdown">
+    <button @onclick="ToggleUserMenu"
+    @onfocusout="HideUserMenu"
+    class="btn btn-secondary dropdown-toggle user-button">
+        <i class="oi oi-person"></i>
+    </button>
+    <div class="dropdown-menu dropdown-menu-right @UserMenuCssClass">
+        <AuthorizeView >
+            <Authorized>
+                <a href="meets" class="dropdown-item">Meets</a>
+                <button @onclick="Logout" class="dropdown-item">Logout</button>
+                <ForAdmin></ForAdmin>
+            </Authorized>
+            <NotAuthorized>
+                <a href="register" class="dropdown-item">Register</a>
+                <a href="login" class="dropdown-item">Login</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+
+</div>
+
+@code {
+    private bool showUserMenu = false;
+    private string UserMenuCssClass => showUserMenu ? "show-menu" : null;
+    private void ToggleUserMenu()
+    {
+
+        showUserMenu = !showUserMenu;
+       
+    }
+
+    private async Task HideUserMenu()
+    {
+        await Task.Delay(200);
+        showUserMenu = false;
+    }
+
+    private async Task Logout()
+    {
+        await _localStorage.RemoveItemAsync("authToken");
+        await _authenticationStateProvider.GetAuthenticationStateAsync();
+        _navigationManager.NavigateTo("");
+    }
+}

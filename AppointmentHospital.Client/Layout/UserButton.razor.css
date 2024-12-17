@@ -1,0 +1,30 @@
+﻿
+.show-menu {
+    display: block !important;
+}
+
+.dropdown-menu {
+    display: none;
+}
+
+    .dropdown-menu.show-menu {
+        display: block;
+    }
+.user-button {
+    margin-left: .5em;
+}
+
+.top-row a {
+    margin-left: 0;
+}
+
+.dropdown-item {
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.dropdown-item:hover {
+    background-color: white;
+}

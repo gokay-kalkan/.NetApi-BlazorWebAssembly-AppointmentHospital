@@ -1,0 +1,75 @@
+﻿@page "/addPoli"
+@using AppointmentHospital.Client.Services.ForPoliclinic
+@using AppointmentHospital.Shared
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IPoliclinicService _policlinicService
+@inject NavigationManager _navigationManager
+@implements IDisposable
+
+<AuthorizeView Roles="Admin">
+    <Authorized Context="authContext">
+        <!-- Policlinic Ekleme Formu -->
+        <EditForm Model="policlinic" OnValidSubmit="CreatePoliclinic">
+            <DataAnnotationsValidator></DataAnnotationsValidator>
+            <div class="mb-3">
+                <label for="policlinicName">Policlinic Name</label>
+                <InputText id="text" @bind-Value=policlinic.PoliclinicName class="form-control"></InputText>
+                <ValidationMessage For="@(()=>policlinic.PoliclinicName)"></ValidationMessage>
+            </div>
+            <button type="submit" class="btn btn-primary">Kaydet</button>
+        </EditForm>
+
+        <br />
+        <hr />
+        <br />
+
+        <!-- Policlinic Listeleme Alanı -->
+        @foreach (var item in policlinics)
+        {
+            <div class="container">
+                <div class="table-bordered">
+                    <h4>@item.PoliclinicName</h4>
+                </div>
+            </div>
+            <button class="btn btn-warning" @onclick="async () => { await _policlinicService.DeletePoliclinics(item.PoliclinicId); await OnInitializedAsync(); }">Sil</button>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <PageTitle>Yetkisiz Erişim</PageTitle>
+
+        <h1>Yetkisiz Erişim</h1>
+        <p>Bu sayfaya sadece adminler erişebilir.</p>
+        <p><a href="/">Ana sayfaya dönmek için tıklayın.</a></p>
+
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private Policlinic policlinic = new Policlinic();
+
+    List<Policlinic> policlinics = new List<Policlinic>();
+
+    private async Task CreatePoliclinic()
+    {
+        await _policlinicService.CreatePoliclinics(policlinic);
+        _navigationManager.NavigateTo("");
+        await _policlinicService.GetPoliclinics();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        policlinics = await _policlinicService.GetPoliclinics();
+      
+    }
+   
+    public void Dispose()
+    {
+        _policlinicService.OnChange -= StateHasChanged;
+    }
+
+    protected override bool ShouldRender()
+    {
+        return base.ShouldRender();
+    }
+
+}

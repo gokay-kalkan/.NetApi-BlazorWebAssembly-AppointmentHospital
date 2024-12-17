@@ -1,0 +1,142 @@
+﻿@attribute [Authorize(Roles = "Person")]
+@page "/meetDate/{doctorId:int}"
+@using AppointmentHospital.Client.Services.ForMeet;
+@using AppointmentHospital.Shared
+@using AppointmentHospital.Shared.Model.MeetDtos
+@using Microsoft.AspNetCore.Authorization
+@inject IMeetService _meetService
+@inject NavigationManager _navigationManager
+
+<EditForm Model="meet"  OnValidSubmit="CreateMeets">
+    <DataAnnotationsValidator></DataAnnotationsValidator>
+    <div class="mb-3" style="display:none">
+        <label for="doctorId">Randevu alınacak Doktor</label>
+        <InputNumber @bind-Value="meet.DoctorId" class="form-control"></InputNumber>
+        <ValidationSummary For="@(() => meet.DoctorId)"></ValidationSummary>
+    </div>
+    <div class="mb-3">
+        <label for="dateInput">Tarih bilgisini giriniz</label>
+        <div class="mb-3 text-danger" style="font-style:italic">
+            <strong>(Randevular yalnızca 1 aylık süreler içerisinde alınabilmektedir)</strong>
+        </div>
+        @if (dateStatuses != null)
+        {
+            <input type="date" id="dateInput" class="form-control"
+                   min="@minDate.ToString("yyyy-MM-dd")" max="@maxDate.ToString("yyyy-MM-dd")"
+                   @onchange="HandleDateChange" />
+
+        }
+        <ValidationMessage For="@(() => meet.MeetDate)"></ValidationMessage>
+        @if (selectedDateStatus != null && selectedDateStatus.IsFullyBooked)
+        {
+            <div class="text-danger">Seçilen tarih dolu, lütfen başka bir tarih seçiniz.</div>
+        }
+    </div>
+
+    <div class="mb-3">
+        <label for="timeInput">Saat bilgisini seçiniz</label>
+        <select id="timeInput" @bind="meet.MeetTime" class="form-control">
+            @if (selectedDateStatus != null)
+            {
+                @foreach (var time in workingHours)
+                {
+                    // Saatin dolu olup olmadığını kontrol et
+                    var isDisabled = selectedDateStatus.BusyTimes.Contains(time);
+
+                    <option value="@time" disabled="@isDisabled">@time.ToString("hh\\:mm")</option>
+                }
+            }
+        </select>
+        <ValidationMessage For="(() => meet.MeetTime)"></ValidationMessage>
+    </div>
+
+
+    <div class="mb-3">
+        <button type="submit" class="btn btn-primary" disabled="@(!IsValid())">Randevuyu Al</button>
+    </div>
+</EditForm>
+
+
+
+
+@code {
+    [Parameter]
+    public int doctorId { get; set; }
+    public Meet meet = new Meet();
+    public EditContext editContext;
+    public List<DateStatus> dateStatuses = new();
+    public DateStatus selectedDateStatus;
+
+    string errorMessage = "";
+    bool errorBool = false;
+
+    // Saat aralıkları 08:30 - 16:30
+    public List<TimeSpan> workingHours = Enumerable.Range(8, 9)
+     .SelectMany(hour => new[] { new TimeSpan(hour, 30, 0), new TimeSpan(hour + 1, 0, 0) })
+     .Where(t => t < new TimeSpan(17, 0, 0))
+     .ToList();
+
+
+    public DateTime minDate = DateTime.Today;
+    public DateTime maxDate = DateTime.Today.AddMonths(1);
+
+    protected override async Task OnInitializedAsync()
+    {
+        editContext = new EditContext(meet); // EditContext oluşturuluyor
+        await LoadDateStatuses();
+    }
+
+    private async Task LoadDateStatuses()
+    {
+        var response = await _meetService.GetDateStatus(doctorId);
+        if (response != null && response.Success)
+        {
+            dateStatuses = response.Data;
+
+            // Debug için:
+            Console.WriteLine($"Loaded {dateStatuses.Count} date statuses.");
+        }
+    }
+
+
+    private async Task HandleDateChange(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var selectedDate))
+        {
+            meet.MeetDate = selectedDate;
+            selectedDateStatus = dateStatuses.FirstOrDefault(d => d.Date.Date == selectedDate.Date);
+
+            if (selectedDateStatus == null)
+            {
+                Console.WriteLine("No data found for the selected date.");
+            }
+            else
+            {
+                Console.WriteLine($"Selected date: {selectedDate}, Busy times: {selectedDateStatus.BusyTimes.Count}");
+            }
+        }
+    }
+
+
+
+    private bool IsValid()
+    {
+        return meet.MeetDate != default && meet.MeetTime != default;
+    }
+
+    private async Task CreateMeets()
+    {
+        meet.DoctorId = doctorId;
+        var result = await _meetService.CreateMeet(meet);
+        if (!result.Success)
+        {
+            errorMessage = result.Message;
+            errorBool = result.Success;
+        }
+        else
+        {
+            _navigationManager.NavigateTo("");
+        }
+    }
+}
+
